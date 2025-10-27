@@ -1,0 +1,5 @@
+# Ignora arquivos de dados na contagem de linguagens
+*.csv linguist-vendored
+
+# Ignora HTML gerado na contagem de linguagens
+*.html linguist-generated
