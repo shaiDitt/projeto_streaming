@@ -1,6 +1,4 @@
-# projeto_streaming
-Análise de churn de clientes de streaming – R e Tableau
-# 🎬 Análise de Churn em Clientes de Streaming
+# 🎬 Análise de Churn em Clientes de Streaming - R e Tableau
 
 ## 🎯 Objetivo do Projeto
 
@@ -68,7 +66,7 @@ O dashboard interativo completo pode ser acessado diretamente no Tableau Public 
 
 ➡️ **[Acessar Dashboard no Tableau Public (Interativo)](https://public.tableau.com/app/profile/shaini.dittberner/viz/AnlisedeEngajamentoeRotatividadeChurndeClientesemumaPlataformadeStreaming/Dashboard1)**
 
-![Dashboard de Comparação de Engajamento e Frustração](imagens_tableau/Dashboard_1_streaming.png)
+![Dashboard de Comparação de Engajamento e Frustração](imagens_tableau/dashboard_1_streaming.png)(imagens_tableau/dashboard_2_streaming.png)
 
 ## 🧑‍💻 Autor
 
