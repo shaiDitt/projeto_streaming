@@ -3,3 +3,6 @@
 
 # Ignora HTML gerado na contagem de linguagens
 *.html linguist-generated
+
+# FORÇA o R Markdown a ser contado como Linguagem R
+*.Rmd linguist-language=R
