@@ -70,6 +70,6 @@ O dashboard interativo completo pode ser acessado diretamente no Tableau Public 
 ![Dashboard de Comparação de Engajamento e Frustração](imagens_tableau/dashboard_2_streaming.png)
 ## 🧑‍💻 Autor
 
-* **[shaiDitt]** - *Cientista de Dados em Formação* ```
+* **[shaiDitt]** - *Cientista de Dados em Formação* 
 
 ---
