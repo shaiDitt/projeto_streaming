@@ -1,0 +1,209 @@
+---
+title: "Análise de Engajamento e Rotatividade (Churn) de Clientes em uma Plataforma de Streaming"
+author: "Shaini Dittberner"
+date: "2025-10-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1 - Preparação do ambiente 
+Carregando as bibliotecas necessárias para análise e visualização:
+```{r}
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(scales)
+```
+
+### 2 - Importação e Visualização Inicial dos Dados
+```{r}
+#Importando dados
+analise_streaming <- read_csv("C:/Users/shain/Documents/Yevenb/Desafio_1_YevenB/desafio1-analise_churn_streaming.csv")
+
+#Visualizando o meu dataset
+head(analise_streaming)
+
+```
+
+## 3 - Limpeza e Padronização dos Dados
+
+### 3.1 Checagem de duplicatas
+
+```{r}
+any(duplicated(analise_streaming$ID_Cliente))
+```
+
+### 3.2 Checagem de espaços em branco em colunas de texto
+```{r}
+sapply(analise_streaming, function(coluna) {
+  if (is.character(coluna)) {
+    any(coluna != trimws(coluna))
+  } else {
+    FALSE
+  }
+})
+```
+
+## 3.3 Verificação de valores ausentes 
+```{r}
+sapply(analise_streaming, function(coluna) any(is.na(coluna)))
+```
+
+
+## 4 - Tratamento de Valores Nulos e Inconsistências
+###  4.1 Tempo de Visualização Mensal
+
+Verificando a média e mediana da coluna Tempo_Visualizacao_Mensal_Horas que não possui valores vazios
+```{r}
+mean(analise_streaming$Tempo_Visualizacao_Mensal_Horas, na.rm=TRUE)
+median(analise_streaming$Tempo_Visualizacao_Mensal_Horas, na.rm=TRUE)
+```
+
+Substituindo valores vazios em Tempo_Visualizacao_Mensal_Horas pela mediana =77.6
+```{r}
+analise_streaming <- analise_streaming %>% 
+  mutate(Tempo_Visualizacao_Mensal_Horas = if_else(
+    is.na (Tempo_Visualizacao_Mensal_Horas),
+    77.6,
+    Tempo_Visualizacao_Mensal_Horas
+  ))
+```
+
+###  4.2 Padronização do Plano de Assinatura
+```{r}
+table(analise_streaming$Plano_Assinatura)
+```
+
+A função table verificou 4 tipos de entrada na coluna Plano_Assinatura, vamos padronizar isso para "Básico" e "Premium"
+```{r}
+analise_streaming <- analise_streaming %>% 
+  mutate(Plano_Assinatura = case_when(
+    Plano_Assinatura %in% c("Padrão", "PADRÃO", "Básico") ~ "Básico",
+    Plano_Assinatura %in% c("Premium") ~ "Premium"
+  ))
+```
+
+###  4.3 Interações de Suporte
+
+Valores extremos (99) substituídos pela mediana (1):
+
+Quando verifico insconsistencias na coluna Interacoes_Suporte_Mensal com a função 'table', vejo que possuo valores iguais a 99. Isso é um problema para mim uam vez que a média de interações mensais esta entre 2~5, e 99 não é um número real para esse parametro. 
+Verificando a melhor opção para substituir, se média ou mediana. 
+```{r}
+mean(analise_streaming$Interacoes_Suporte_Mensal) #=1.71
+median(analise_streaming$Interacoes_Suporte_Mensal) #=1
+```
+
+Escolhi substituir pela mediana *(Uma vez que a média tinha valor 1.71 puxando a minha interação para 2 -  outlier puxando média para cima) 
+```{r}
+analise_streaming <- analise_streaming %>% 
+  mutate(Interacoes_Suporte_Mensal = if_else(
+    Interacoes_Suporte_Mensal == 99,
+    1,
+    Interacoes_Suporte_Mensal
+  ))
+```
+
+### 4.4 Verificando inconsistencias em Media_Avaliacoes_Filmese está tudo ok. 
+```{r}
+any(is.na(analise_streaming$Media_Avaliacoes_Filmes))
+table(analise_streaming$Media_Avaliacoes_Filmes)
+unique(analise_streaming$Media_Avaliacoes_Filmes)
+min(analise_streaming$Media_Avaliacoes_Filmes)
+max(analise_streaming$Media_Avaliacoes_Filmes)
+
+```
+
+
+### 4.5 Data de Último Login
+
+Usando a função 'table' para verificar as entradas de Data_Ultimo_Login, verifiquei a entrada de elementos "N/A". Vou transformar isso em NA para ser entendido como valor ausente:
+```{r}
+analise_streaming$Data_Ultimo_Login[analise_streaming$Data_Ultimo_Login == "N/A"] <- NA
+```
+
+Usando a função str, também verifiquei que a coluna tem tipo caractere, vou modificar isso para tipo 'Date'. 
+```{r}
+analise_streaming$Data_Ultimo_Login <- as.Date(analise_streaming$Data_Ultimo_Login, format = "%Y-%m-%d")
+```
+
+Analisando a coluna Status_Retencao e Data_Ultimo_Login, foi verificado que todos os clientes 'Retidos' são NA em Data_Ultimo_Login, e 95% dos clientes 'Churn' possuem Data_Ultimo_Login entre 2025/04/23 e 2025/09/19. 
+A inteção inicial seria fazer uma Coluna Engajamento_Recente para analisar os clientes Retidos que estão em 'Risco', tendo em comparação a data do último login dos 'Churn' e também aqueles que não lugaram nos últimos 30 dias. Mas sem os dados de Data_Ultimo_Login dos clientes 'Retidos', isso não é possível. 
+Vamos passar para o próximo item da nossa análise. 
+
+## 5 - Resumo Estatístico por Status de Retenção
+
+Aqui vou criar cálculo de tempo médio de visualição, mediana e desvio padrão. 
+
+```{r}
+resumo_retencao <- analise_streaming %>% 
+  group_by(Status_Retencao) %>% 
+  summarise(
+    #max_visualizacao = max(Tempo_Visualizacao_Mensal_Horas, na.rm=TRUE),
+    #min_visualizacao = min(Tempo_Visualizacao_Mensal_Horas, na.rm=TRUE),
+    media_visualizacao = mean(Tempo_Visualizacao_Mensal_Horas, na.rm=TRUE),
+    mediana_visualização = median(Tempo_Visualizacao_Mensal_Horas, na.rm=TRUE),
+    desvio_padrão = sd(Tempo_Visualizacao_Mensal_Horas, na.rm=TRUE),
+    total_de_clientes = n()
+  )
+```
+
+Com o novo dataframe resumo_retencao, temos alguns insights importantes que serão pontuados aqui: 
+* Clientes “Retidos” assistem, em média, 90 horas por mês, enquanto os “Churn” assistem apenas cerca de 27 horas.
+→ Isso é uma diferença muito grande, e sugere que baixo engajamento (menos tempo de visualização) está fortemente associado ao churn.
+* As medianas (88.7 vs. 26.6) confirmam a mesma tendência — não há outliers distorcendo muito o resultado.
+* Desvios padrão:
+** Churn: 14.26 → comportamento mais consistente (quase todos assistem pouco).
+** Retido: 34.76 → mais disperso (uns assistem pouco, outros muito).
+* Tamanho das amostras: A maioria dos clientes é “Retido” (971) versus “Churn” (229) 
+
+## 6 - Cálculo de média, mediana e desvio padrão do tempo de visualização mensal:
+Agora sim posso fazer uma coluna de Engajamento de acordo com as horas assistidas para idetificar potenciais clientes em "Em risco" que ainda usam a plataforma, ou seja, potenciais clientes em risco que são clientes 'Retidos'. 
+
+### 6.1 Classificação de Engajamento 
+```{r}
+analise_streaming <- analise_streaming %>%
+  mutate(Engajamento_Horas = case_when(
+    Tempo_Visualizacao_Mensal_Horas < 40 ~ "Baixo",
+    Tempo_Visualizacao_Mensal_Horas >= 40 & Tempo_Visualizacao_Mensal_Horas < 80 ~ "Médio",
+    Tempo_Visualizacao_Mensal_Horas >= 80 ~ "Alto",
+    TRUE ~ NA_character_
+  ))
+```
+
+
+### 6.2 Identificação de Clientes “Retidos em Risco”
+Agora podemos identificar os clientes "Retidos em Risco": 
+
+```{r}
+analise_streaming <- analise_streaming %>%
+  mutate(Em_Risco = case_when(
+    Status_Retencao == "Retido" & Engajamento_Horas == "Baixo" ~ "Em risco",
+    Status_Retencao == "Retido" & Engajamento_Horas != "Baixo" ~ "Ativo",
+    Status_Retencao == "Churn" ~ "Não se aplica"
+  ))
+```
+
+Dando uma olhada nos meus resultados: 
+```{r}
+ table(analise_streaming$Status_Retencao, analise_streaming$Engajamento_Horas)
+```
+
+```{r}
+table(analise_streaming$Em_Risco)
+```
+
+Isso me mostra que 93 dos meus clientes Retidos estão em Risco. 
+
+A partir de agora, já tenho uma base de dados limpa e um resumo de retenção onde posso continuar o resto da minha análise no Tableau para encontrar padrões, tendências, taxas e insights. 
+
+## 7 - Exportação de Dados para Tableau 
+```{r}
+write.csv(analise_streaming, "analise_streaming_final.csv", row.names = FALSE)
+write.csv(resumo_retencao, "resumo_retencao.csv", row.names = FALSE)
+```
+
